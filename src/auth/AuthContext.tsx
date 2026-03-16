@@ -20,7 +20,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
 }
 
-const auth = getAuth(firebaseApp);
+const auth = firebaseApp ? getAuth(firebaseApp) : null;
 const googleProvider = new GoogleAuthProvider();
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -29,6 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       setLoading(false);
@@ -42,15 +47,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       signIn: async (email, password) => {
+        if (!auth) throw new Error('Firebase Auth is not configured');
         await signInWithEmailAndPassword(auth, email, password);
       },
       signInWithGoogle: async () => {
+        if (!auth) throw new Error('Firebase Auth is not configured');
         await signInWithPopup(auth, googleProvider);
       },
       signUp: async (email, password) => {
+        if (!auth) throw new Error('Firebase Auth is not configured');
         await createUserWithEmailAndPassword(auth, email, password);
       },
       signOut: async () => {
+        if (!auth) throw new Error('Firebase Auth is not configured');
         await firebaseSignOut(auth);
       },
     }),

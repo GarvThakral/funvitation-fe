@@ -1,10 +1,15 @@
 import type { Invitation } from '../types';
 import { toApiUrl } from './api-url';
+import { getAuthHeaders } from './auth-request';
+import { sanitizeInvitationRecord } from './invitation';
 
 export const createInvitation = async (invitation: Partial<Invitation>) => {
   const response = await fetch(toApiUrl('/api/invitations'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(await getAuthHeaders()),
+    },
     body: JSON.stringify({ invitation }),
   });
 
@@ -32,5 +37,5 @@ export const fetchInvitation = async (id: string) => {
     throw new Error('Invitation was not returned by the server.');
   }
 
-  return payload.invitation;
+  return sanitizeInvitationRecord(payload.invitation);
 };

@@ -6,9 +6,27 @@ interface EditorTopBarProps {
   onCopy: () => void;
   onSignOut: () => void;
   userEmail?: string;
+  currentPlanLabel?: string;
+  usageLabel?: string;
+  onManageBilling: () => void;
+  onUpgrade: () => void;
+  hasCustomerPortal: boolean;
+  billingBusy: boolean;
 }
 
-export default function EditorTopBar({ shareUrl, copied, onCopy, onSignOut, userEmail }: EditorTopBarProps) {
+export default function EditorTopBar({
+  shareUrl,
+  copied,
+  onCopy,
+  onSignOut,
+  userEmail,
+  currentPlanLabel,
+  usageLabel,
+  onManageBilling,
+  onUpgrade,
+  hasCustomerPortal,
+  billingBusy,
+}: EditorTopBarProps) {
   return (
     <div className="h-16 bg-white/80 backdrop-blur-md border-b border-[#f3c583]/60 flex items-center justify-between px-8 z-10">
       <div className="flex items-center gap-2">
@@ -21,6 +39,15 @@ export default function EditorTopBar({ shareUrl, copied, onCopy, onSignOut, user
       </div>
 
       <div className="flex items-center gap-4">
+        {currentPlanLabel && (
+          <div className="hidden items-center gap-2 rounded-full border border-[#f3c583]/60 bg-[#fffaf0] px-3 py-2 md:flex">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#c86d75]">
+              {currentPlanLabel}
+            </span>
+            {usageLabel && <span className="text-[10px] text-[#6a645a]">{usageLabel}</span>}
+          </div>
+        )}
+
         {shareUrl && (
           <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
             <span className="text-xs text-[#c86d75] font-semibold">Shareable link ready!</span>
@@ -45,6 +72,14 @@ export default function EditorTopBar({ shareUrl, copied, onCopy, onSignOut, user
             </div>
           </div>
         )}
+
+        <button
+          onClick={hasCustomerPortal ? onManageBilling : onUpgrade}
+          disabled={billingBusy}
+          className="inline-flex items-center gap-2 rounded-lg border border-[#e99497]/60 bg-white px-3 py-2 text-xs font-semibold text-[#c86d75] hover:bg-[#fff0f0] disabled:opacity-60"
+        >
+          {billingBusy ? 'Please wait...' : hasCustomerPortal ? 'Manage Billing' : 'Upgrade'}
+        </button>
 
         <button
           onClick={onSignOut}

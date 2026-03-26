@@ -2,6 +2,7 @@ import { Heart, Image as ImageIcon, Layout, Palette, Sparkles, Square, Sun, Type
 import type { ChangeEvent, ReactNode, RefObject } from 'react';
 import { Template } from '../../templates';
 import type { CanvasElement } from '../../types';
+import { BUTTON_SIZE_PRESETS } from '../../lib/canvas-config';
 
 interface EditorElementLibraryProps {
   templates: Template[];
@@ -13,6 +14,7 @@ interface EditorElementLibraryProps {
   onOpenUpload: () => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onImageUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  templateAccess: 'core' | 'all';
 }
 
 export default function EditorElementLibrary({
@@ -25,6 +27,7 @@ export default function EditorElementLibrary({
   onOpenUpload,
   fileInputRef,
   onImageUpload,
+  templateAccess,
 }: EditorElementLibraryProps) {
   const templateVisuals: Record<string, { icon: ReactNode; accent: string; chip: string }> = {
     valentine: {
@@ -53,7 +56,9 @@ export default function EditorElementLibrary({
     <div>
       <h2 className="text-xs font-semibold uppercase tracking-wider text-[#c86d75] mb-4">Templates</h2>
       <div className="grid grid-cols-1 gap-3 mb-6">
-        {templates.map((template) => (
+        {templates.map((template) => {
+          const isLocked = template.accessTier === 'premium' && templateAccess !== 'all';
+          return (
           <div
             key={template.id}
             className={`group relative overflow-hidden rounded-2xl border bg-white text-left transition-all ${
@@ -74,8 +79,14 @@ export default function EditorElementLibrary({
                     <p className="mt-0.5 text-[10px] text-[#6a645a]">One-click canvas starter</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-[#f7ffe9] px-2 py-0.5 text-[10px] font-semibold text-[#4b6a2e]">
-                  {templateVisuals[template.id]?.chip || 'Template'}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    isLocked
+                      ? 'bg-[#fff0f0] text-[#c2484f]'
+                      : 'bg-[#f7ffe9] text-[#4b6a2e]'
+                  }`}
+                >
+                  {isLocked ? 'Premium' : templateVisuals[template.id]?.chip || 'Template'}
                 </span>
               </div>
             </button>
@@ -85,13 +96,26 @@ export default function EditorElementLibrary({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <h2 className="text-xs font-semibold uppercase tracking-wider text-[#c86d75] mb-4">Add Elements</h2>
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => onAddElement('text', { text: 'New Text', fontSize: 24, fill: '#000000' })}
+          onClick={() =>
+            onAddElement('text', {
+              text: 'New Text',
+              fontSize: 24,
+              fontFamily: 'Inter',
+              fontWeight: 'normal',
+              textAlign: 'left',
+              lineHeight: 1.2,
+              fill: '#000000',
+              width: 240,
+              height: 48,
+            })
+          }
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors"
         >
           <Type size={20} className="text-[#c86d75] mb-1" />
@@ -120,8 +144,15 @@ export default function EditorElementLibrary({
               text: 'Yes',
               buttonType: 'yes',
               fill: '#10b981',
-              width: 120,
-              height: 50,
+              textColor: '#ffffff',
+              fontFamily: 'Inter',
+              fontWeight: 'bold',
+              borderRadius: 24,
+              buttonSize: 'medium',
+              paddingX: BUTTON_SIZE_PRESETS.medium.paddingX,
+              paddingY: BUTTON_SIZE_PRESETS.medium.paddingY,
+              width: BUTTON_SIZE_PRESETS.medium.width,
+              height: BUTTON_SIZE_PRESETS.medium.height,
             })
           }
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors"
@@ -136,8 +167,15 @@ export default function EditorElementLibrary({
               text: 'No',
               buttonType: 'no',
               fill: '#ef4444',
-              width: 120,
-              height: 50,
+              textColor: '#ffffff',
+              fontFamily: 'Inter',
+              fontWeight: 'bold',
+              borderRadius: 24,
+              buttonSize: 'medium',
+              paddingX: BUTTON_SIZE_PRESETS.medium.paddingX,
+              paddingY: BUTTON_SIZE_PRESETS.medium.paddingY,
+              width: BUTTON_SIZE_PRESETS.medium.width,
+              height: BUTTON_SIZE_PRESETS.medium.height,
             })
           }
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors"

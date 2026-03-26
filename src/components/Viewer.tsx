@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, Volume2, VolumeX } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
 
 import type { CanvasElement, Invitation } from '../types';
-import { STAGE_HEIGHT, STAGE_WIDTH } from '../lib/canvas-config';
+import { DEFAULT_CANVAS_SIZE } from '../lib/canvas-config';
 import { fetchInvitation } from '../lib/invitations-api';
+import { useStageScale } from '../lib/use-stage-scale';
+import { DEFAULT_REJECTION_MESSAGE, DEFAULT_SUCCESS_MESSAGE } from '../lib/invitation';
 
 import HoliBackground from './viewer/HoliBackground';
 import SuccessOverlay from './viewer/SuccessOverlay';
@@ -34,6 +35,13 @@ const startTimedConfetti = () => {
   return () => clearInterval(interval);
 };
 
+interface ViewerResponseState {
+  variant: 'success' | 'rejection';
+  title: string;
+  message: string;
+  persistent: boolean;
+}
+
 export default function Viewer() {
   const { id } = useParams<{ id: string }>();
 
@@ -41,16 +49,19 @@ export default function Viewer() {
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [responseState, setResponseState] = useState<ViewerResponseState | null>(null);
   const [noButtonScale, setNoButtonScale] = useState(1);
   const [yesButtonScale, setYesButtonScale] = useState(1);
   const [isMuted, setIsMuted] = useState(true);
+  const [entranceComplete, setEntranceComplete] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const viewerFrameRef = useRef<HTMLDivElement>(null);
+  const confettiCleanupRef = useRef<(() => void) | null>(null);
+  const canvasSize = invitation?.canvasSize || DEFAULT_CANVAS_SIZE;
+  const stageScale = useStageScale(viewerFrameRef, canvasSize.width, canvasSize.height);
 
   useEffect(() => {
-    let cleanupConfetti: (() => void) | undefined;
-
     const loadInvitation = async () => {
       if (!id) return;
 
@@ -58,10 +69,7 @@ export default function Viewer() {
         const data = await fetchInvitation(id);
         setInvitation(data);
         setElements(data.elements);
-
-        if (data.animationType === 'confetti') {
-          cleanupConfetti = startTimedConfetti();
-        }
+        setEntranceComplete(false);
       } catch (fetchError) {
         console.error('Error fetching invitation:', fetchError);
         setError(fetchError instanceof Error ? fetchError.message : 'Failed to load invitation.');
@@ -73,9 +81,26 @@ export default function Viewer() {
     loadInvitation();
 
     return () => {
-      if (cleanupConfetti) cleanupConfetti();
+      confettiCleanupRef.current?.();
+      confettiCleanupRef.current = null;
     };
   }, [id]);
+
+  useEffect(() => {
+    confettiCleanupRef.current?.();
+    confettiCleanupRef.current = null;
+
+    if (!entranceComplete || invitation?.animationType !== 'confetti') {
+      return;
+    }
+
+    confettiCleanupRef.current = startTimedConfetti();
+
+    return () => {
+      confettiCleanupRef.current?.();
+      confettiCleanupRef.current = null;
+    };
+  }, [entranceComplete, invitation?.animationType, invitation?.id]);
 
   useEffect(() => {
     if (!invitation?.musicUrl) {
@@ -101,26 +126,55 @@ export default function Viewer() {
     };
   }, [invitation?.musicUrl, isMuted]);
 
-  const handleNoInteraction = (elementId: string) => {
+  useEffect(() => {
+    if (responseState?.persistent) return;
+    if (!responseState) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setResponseState((current) => (current?.persistent ? current : null));
+    }, 1600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [responseState]);
+
+  const moveNoButton = (elementId: string, showMessage: boolean) => {
     const padding = 50;
 
     setElements((prev) =>
       prev.map((element) => {
         if (element.id !== elementId) return element;
 
+        const maxX = Math.max(0, canvasSize.width - (element.width || 100) - padding * 2);
+        const maxY = Math.max(0, canvasSize.height - (element.height || 50) - padding * 2);
+
         return {
           ...element,
-          x: Math.random() * (STAGE_WIDTH - (element.width || 100) - padding * 2) + padding,
-          y: Math.random() * (STAGE_HEIGHT - (element.height || 50) - padding * 2) + padding,
+          x: Math.random() * maxX + padding,
+          y: Math.random() * maxY + padding,
         };
       })
     );
 
     setNoButtonScale((prev) => prev * 0.9);
+
+    if (showMessage) {
+      setResponseState({
+        variant: 'rejection',
+        title: 'Response received',
+        message: invitation?.rejectionMessage || DEFAULT_REJECTION_MESSAGE,
+        persistent: false,
+      });
+    }
   };
 
   const handleYesClick = () => {
-    setIsSuccess(true);
+    setResponseState({
+      variant: 'success',
+      title: 'Invitation accepted',
+      message: invitation?.successMessage || DEFAULT_SUCCESS_MESSAGE,
+      persistent: true,
+    });
+
     if (invitation?.animationType === 'confetti') {
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
@@ -144,7 +198,7 @@ export default function Viewer() {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(160deg,_#fff6ea_0%,_#fffde8_45%,_#f4ffdf_100%)] flex items-center justify-center p-4 md:p-12 relative overflow-hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(160deg,_#fff6ea_0%,_#fffde8_45%,_#f4ffdf_100%)] p-4 md:p-12">
       {invitation.musicUrl && (
         <button
           onClick={() => setIsMuted((prev) => !prev)}
@@ -156,31 +210,50 @@ export default function Viewer() {
 
       {invitation.animationType === 'holi' && <HoliBackground />}
 
-      <AnimatePresence>
-        {isSuccess ? (
-          <SuccessOverlay
-            message={invitation.successMessage || 'Yay! I love you! ❤️'}
-            onBack={() => setIsSuccess(false)}
-          />
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="shadow-2xl rounded-lg overflow-hidden bg-white relative z-10"
-            style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
+      <div
+        ref={viewerFrameRef}
+        className="relative z-10 flex min-h-[calc(100vh-2rem)] items-center justify-center md:min-h-[calc(100vh-6rem)]"
+      >
+        <div
+          className="relative shrink-0"
+          style={{ width: canvasSize.width * stageScale, height: canvasSize.height * stageScale }}
+        >
+          <div
+            className="relative overflow-hidden rounded-lg bg-white shadow-2xl"
+            style={{
+              width: canvasSize.width,
+              height: canvasSize.height,
+              transform: `scale(${stageScale})`,
+              transformOrigin: 'top left',
+            }}
           >
             <ViewerStage
+              key={invitation.id}
               elements={elements}
               backgroundColor={invitation.backgroundColor}
+              canvasSize={canvasSize}
+              entranceAnimation={invitation.entranceAnimation || 'fadein'}
               noButtonScale={noButtonScale}
               yesButtonScale={yesButtonScale}
               onYes={handleYesClick}
-              onNo={handleNoInteraction}
+              onNoMove={(elementId) => moveNoButton(elementId, false)}
+              onNoTap={(elementId) => moveNoButton(elementId, true)}
               onYesHover={(isHovering) => setYesButtonScale(isHovering ? 1.1 : 1)}
+              onEntranceComplete={() => setEntranceComplete(true)}
             />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+      <SuccessOverlay
+        isOpen={Boolean(responseState)}
+        variant={responseState?.variant || 'success'}
+        title={responseState?.title || ''}
+        message={responseState?.message || ''}
+        actionLabel={responseState?.persistent ? 'Back to invite' : undefined}
+        onAction={responseState?.persistent ? () => setResponseState(null) : undefined}
+        onDismiss={() => setResponseState(null)}
+      />
     </div>
   );
 }

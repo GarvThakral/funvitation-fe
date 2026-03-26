@@ -1,15 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
+  browserLocalPersistence,
   createUserWithEmailAndPassword,
-  getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
+  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth';
-import { firebaseApp } from '../lib/firebase-client';
+import { firebaseAuth } from '../lib/firebase-client';
 
 interface AuthContextValue {
   user: User | null;
@@ -20,7 +21,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
 }
 
-const auth = firebaseApp ? getAuth(firebaseApp) : null;
+const auth = firebaseAuth;
 const googleProvider = new GoogleAuthProvider();
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -34,12 +35,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-      setLoading(false);
-    });
+    let isMounted = true;
+    let unsubscribe = () => undefined;
 
-    return unsubscribe;
+    const initAuth = async () => {
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (error) {
+        console.warn('Failed to apply local auth persistence.', error);
+      }
+
+      if (!isMounted) {
+        return;
+      }
+
+      unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+        setUser(nextUser);
+        setLoading(false);
+      });
+    };
+
+    void initAuth();
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(

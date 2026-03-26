@@ -1,12 +1,15 @@
-import type { CanvasElement } from '../types';
+import type { CanvasElement, CanvasSize, Invitation } from '../types';
 
 export interface ParsedTemplate {
   id: string;
   name: string;
   backgroundColor: string;
   successMessage?: string;
+  rejectionMessage?: string;
   animationType?: 'confetti' | 'holi' | 'none';
+  entranceAnimation?: NonNullable<Invitation['entranceAnimation']>;
   musicUrl?: string;
+  canvasSize?: CanvasSize;
   elements: CanvasElement[];
 }
 
@@ -34,6 +37,8 @@ export const parseTemplateHtml = (html: string): ParsedTemplate => {
   const id = root.dataset.templateId;
   const name = root.dataset.templateName;
   const backgroundColor = root.dataset.backgroundColor;
+  const canvasWidth = readOptionalNumber(root.dataset.canvasWidth);
+  const canvasHeight = readOptionalNumber(root.dataset.canvasHeight);
 
   if (!id || !name || !backgroundColor) {
     throw new Error('Template root must include data-template-id, data-template-name, and data-background-color.');
@@ -67,11 +72,21 @@ export const parseTemplateHtml = (html: string): ParsedTemplate => {
       element.text = (node.textContent || '').trim();
       element.fontSize = readOptionalNumber(node.dataset.fontSize) || 24;
       element.fontFamily = node.dataset.fontFamily || 'Inter';
+      element.fontWeight = (node.dataset.fontWeight as CanvasElement['fontWeight']) || 'normal';
+      element.textAlign = (node.dataset.textAlign as CanvasElement['textAlign']) || 'left';
+      element.lineHeight = readOptionalNumber(node.dataset.lineHeight) || 1.2;
     }
 
     if (type === 'button') {
       element.text = node.dataset.text || (node.textContent || '').trim();
       element.fontSize = readOptionalNumber(node.dataset.fontSize) || 16;
+      element.fontFamily = node.dataset.fontFamily || 'Inter';
+      element.fontWeight = (node.dataset.fontWeight as CanvasElement['fontWeight']) || 'normal';
+      element.textColor = node.dataset.textColor || '#ffffff';
+      element.borderRadius = readOptionalNumber(node.dataset.borderRadius) || 18;
+      element.buttonSize = (node.dataset.buttonSize as CanvasElement['buttonSize']) || 'medium';
+      element.paddingX = readOptionalNumber(node.dataset.paddingX) || undefined;
+      element.paddingY = readOptionalNumber(node.dataset.paddingY) || undefined;
       element.buttonType = node.dataset.buttonType as CanvasElement['buttonType'];
     }
 
@@ -91,8 +106,17 @@ export const parseTemplateHtml = (html: string): ParsedTemplate => {
     name,
     backgroundColor,
     successMessage: root.dataset.successMessage,
+    rejectionMessage: root.dataset.rejectionMessage,
     animationType: root.dataset.animationType as ParsedTemplate['animationType'],
+    entranceAnimation: root.dataset.entranceAnimation as ParsedTemplate['entranceAnimation'],
     musicUrl: root.dataset.musicUrl,
+    canvasSize:
+      canvasWidth && canvasHeight
+        ? {
+            width: canvasWidth,
+            height: canvasHeight,
+          }
+        : undefined,
     elements,
   };
 };

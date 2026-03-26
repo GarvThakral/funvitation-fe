@@ -1,5 +1,6 @@
 import { estimateBytes } from './invitation';
 import { toApiUrl } from './api-url';
+import { getAuthHeaders } from './auth-request';
 
 const MAX_IMAGE_DIMENSION = 1400;
 const MAX_IMAGE_DATA_URL_BYTES = 8 * 1024 * 1024;
@@ -59,7 +60,10 @@ export const uploadImageViaBackend = async (file: File) => {
   const dataUrl = await compressImageToDataUrl(file);
   const response = await fetch(toApiUrl('/api/upload-image'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(await getAuthHeaders()),
+    },
     body: JSON.stringify({ dataUrl }),
   });
 

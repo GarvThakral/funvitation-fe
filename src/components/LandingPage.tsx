@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, ExternalLink, Loader2, RefreshCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { createCustomerPortalSession, fetchBillingOverview, fetchPublicPlans, startPlanCheckout } from '../lib/billing-api';
-import type { BillingOverview, PlanId, PublicPlan } from '../types';
+import {
+  createCustomerPortalSession,
+  fetchBillingOverview,
+  fetchMyInvitations,
+  fetchPublicPlans,
+  startPlanCheckout,
+} from '../lib/billing-api';
+import type { BillingOverview, InviteSummary, PlanId, PublicPlan } from '../types';
 import { useAuth } from '../auth/AuthContext';
 import AuthPanel from './landing/AuthPanel';
 
@@ -29,11 +35,13 @@ const planSubtitles: Record<PlanId, string> = {
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { loading, user } = useAuth();
   const [plans, setPlans] = useState<PublicPlan[]>([]);
   const [billingOverview, setBillingOverview] = useState<BillingOverview | null>(null);
+  const [myInvitations, setMyInvitations] = useState<InviteSummary[]>([]);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
   const [billingBusy, setBillingBusy] = useState<PlanId | 'portal' | null>(null);
+  const [isAccountLoading, setIsAccountLoading] = useState(false);
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -47,22 +55,33 @@ export default function LandingPage() {
     void loadPlans();
   }, []);
 
-  useEffect(() => {
-    const loadBilling = async () => {
-      if (!user) {
-        setBillingOverview(null);
-        return;
-      }
+  const refreshAccountState = useCallback(async () => {
+    if (!user) {
+      setBillingOverview(null);
+      setMyInvitations([]);
+      return;
+    }
 
-      try {
-        setBillingOverview(await fetchBillingOverview());
-      } catch (error) {
-        console.error('Failed to load billing overview:', error);
-      }
-    };
-
-    void loadBilling();
+    setIsAccountLoading(true);
+    try {
+      const [nextBillingOverview, nextInvitations] = await Promise.all([
+        fetchBillingOverview(),
+        fetchMyInvitations(),
+      ]);
+      setBillingOverview(nextBillingOverview);
+      setMyInvitations(nextInvitations);
+      setBillingNotice(null);
+    } catch (error) {
+      console.error('Failed to load account workspace:', error);
+      setBillingNotice(error instanceof Error ? error.message : 'Could not load account state.');
+    } finally {
+      setIsAccountLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    void refreshAccountState();
+  }, [refreshAccountState]);
 
   const visiblePlans = useMemo<PublicPlan[]>(() => {
     if (plans.length > 0) {
@@ -177,13 +196,39 @@ export default function LandingPage() {
     }
   };
 
+  const activeInvitations = myInvitations.filter((invitation) => invitation.status === 'active');
+  const archivedInvitations = myInvitations.filter((invitation) => invitation.status === 'archived');
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff6e6_0%,_#fef9d8_42%,_#f3ffd9_100%)] text-[var(--play-ink)]">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
         <p className="text-lg font-bold tracking-tight">funvitation</p>
-        <a href="#auth" className="rounded-full border border-[#e99497]/50 bg-white px-4 py-2 text-sm font-medium hover:bg-[#fff0f0]">
-          Sign in
-        </a>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => void refreshAccountState()}
+              disabled={loading || isAccountLoading}
+              className="inline-flex items-center gap-2 rounded-full border border-[#b3e283] bg-white px-4 py-2 text-sm font-medium text-[#42622b] hover:bg-[#f7ffe9] disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={isAccountLoading ? 'animate-spin' : ''} />
+              Check state
+            </button>
+          ) : (
+            <a href="#auth" className="rounded-full border border-[#e99497]/50 bg-white px-4 py-2 text-sm font-medium hover:bg-[#fff0f0]">
+              Sign in
+            </a>
+          )}
+          {user && (
+            <button
+              type="button"
+              onClick={() => navigate('/editor')}
+              className="rounded-full bg-[#e99497] px-4 py-2 text-sm font-semibold text-white hover:bg-[#d98287]"
+            >
+              Open editor
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-6 pb-20">
@@ -229,8 +274,155 @@ export default function LandingPage() {
             )}
           </div>
 
-          <AuthPanel onSuccess={() => navigate('/editor')} />
+          {user ? (
+            <section className="rounded-3xl border border-[#f3c583]/60 bg-white p-6 shadow-xl shadow-[#f3c583]/25">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-[var(--play-ink)]">Workspace</h2>
+                  <p className="mt-1 text-sm text-[#6a645a]">
+                    Signed in as {billingOverview?.profile.email || user.email || 'your account'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void refreshAccountState()}
+                  disabled={isAccountLoading}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#f3c583]/60 bg-[#fff8ea] px-4 py-2 text-sm font-semibold text-[#9d6f2f] disabled:opacity-60"
+                >
+                  {isAccountLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+                  Refresh state
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-[#fff6e8] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#9d6f2f]">Plan</p>
+                  <p className="mt-2 text-lg font-bold">{billingOverview?.currentPlan.label || 'Loading...'}</p>
+                  <p className="mt-1 text-sm text-[#6a645a]">
+                    {billingOverview?.profile.subscriptionStatus || 'Checking status'}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-[#f7ffe9] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#4b6a2e]">Active Invites</p>
+                  <p className="mt-2 text-lg font-bold">{activeInvitations.length}</p>
+                  <p className="mt-1 text-sm text-[#5b6850]">
+                    {billingOverview?.usage.maxActiveInvites === null
+                      ? 'Unlimited on this plan'
+                      : `${billingOverview?.usage.remainingActiveInvites ?? 0} slots remaining`}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-[#fff0f0] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#c86d75]">Archived</p>
+                  <p className="mt-2 text-lg font-bold">{archivedInvitations.length}</p>
+                  <p className="mt-1 text-sm text-[#6a645a]">Saved for later reuse</p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/editor')}
+                  className="rounded-xl bg-[#e99497] px-4 py-3 text-sm font-semibold text-white hover:bg-[#d98287]"
+                >
+                  Continue in editor
+                </button>
+                {billingOverview?.profile.hasCustomerPortal && (
+                  <button
+                    type="button"
+                    onClick={handleManageBilling}
+                    disabled={billingBusy === 'portal'}
+                    className="rounded-xl border border-[#b3e283] bg-[#f7ffe9] px-4 py-3 text-sm font-semibold text-[#3f6630] disabled:opacity-60"
+                  >
+                    {billingBusy === 'portal' ? 'Opening...' : 'Manage billing'}
+                  </button>
+                )}
+              </div>
+            </section>
+          ) : (
+            <AuthPanel onSuccess={() => navigate('/editor')} />
+          )}
         </section>
+
+        {user && (
+          <section className="mt-8 rounded-3xl border border-[#e8e46e]/50 bg-white/90 p-6 shadow-lg shadow-[#f3c583]/15">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold">Your Invites</h2>
+                <p className="mt-2 text-sm text-[#5f5a50]">
+                  One consolidated view for active and archived invitations.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/editor')}
+                className="rounded-xl border border-[#f3c583]/60 bg-[#fff8ea] px-4 py-3 text-sm font-semibold text-[#9d6f2f]"
+              >
+                Create new invite
+              </button>
+            </div>
+
+            {isAccountLoading ? (
+              <div className="mt-5 flex items-center gap-2 text-sm text-[#6a645a]">
+                <Loader2 size={16} className="animate-spin" />
+                Loading your invite workspace...
+              </div>
+            ) : myInvitations.length === 0 ? (
+              <div className="mt-5 rounded-2xl border border-dashed border-[#f3c583]/70 bg-[#fffaf0] px-4 py-5 text-sm text-[#6a645a]">
+                No invitations yet. Open the editor and publish your first one.
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3">
+                {myInvitations.map((invitation) => (
+                  <article
+                    key={invitation.id}
+                    className="flex flex-col gap-4 rounded-2xl border border-[#f3c583]/50 bg-[#fffdf8] p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-base font-semibold text-[#2f2c28]">
+                          {invitation.title || 'Untitled invitation'}
+                        </p>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                            invitation.status === 'active'
+                              ? 'bg-[#f7ffe9] text-[#4b6a2e]'
+                              : 'bg-[#f1f0ec] text-[#6a645a]'
+                          }`}
+                        >
+                          {invitation.status}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-[#6a645a]">
+                        {invitation.templateId ? `Template: ${invitation.templateId}` : 'Custom canvas'}
+                      </p>
+                      <p className="mt-1 text-xs text-[#8b857b]">
+                        Created {new Date(invitation.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <a
+                        href={`/invite/${invitation.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#b3e283] bg-[#f7ffe9] px-4 py-2.5 text-sm font-semibold text-[#3f6630]"
+                      >
+                        Open invite
+                        <ExternalLink size={14} />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/editor')}
+                        className="rounded-xl border border-[#f3c583]/60 bg-[#fff8ea] px-4 py-2.5 text-sm font-semibold text-[#9d6f2f]"
+                      >
+                        Open editor
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <section id="pricing" className="mt-12">
           <h2 className="text-2xl font-bold">Pricing</h2>

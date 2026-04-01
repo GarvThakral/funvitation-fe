@@ -6,29 +6,79 @@ interface AuthPanelProps {
   onSuccess?: () => void;
 }
 
+const getAuthErrorMessage = (error: unknown, mode: 'signin' | 'signup') => {
+  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'An account with this email already exists.';
+    case 'auth/invalid-email':
+      return 'Enter a valid email address.';
+    case 'auth/weak-password':
+      return 'Password is too weak. Use at least 6 characters.';
+    case 'auth/invalid-credential':
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return 'Incorrect email or password.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Wait a bit and try again.';
+    case 'auth/network-request-failed':
+      return 'Network error. Check your connection and try again.';
+    default:
+      return mode === 'signup'
+        ? 'Could not create your account right now.'
+        : 'Could not sign you in right now.';
+  }
+};
+
 export default function AuthPanel({ onSuccess }: AuthPanelProps) {
   const { signIn, signInWithGoogle, signUp } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const setAuthMode = (nextMode: 'signin' | 'signup') => {
+    setMode(nextMode);
+    setError(null);
+    setPassword('');
+    setConfirmPassword('');
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setError('Enter your email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       if (mode === 'signin') {
-        await signIn(email, password);
+        await signIn(normalizedEmail, password);
       } else {
-        await signUp(email, password);
+        await signUp(normalizedEmail, password);
       }
       onSuccess?.();
     } catch (submitError) {
       console.error('Auth failed:', submitError);
-      setError('Authentication failed. Check credentials and try again.');
+      setError(getAuthErrorMessage(submitError, mode));
     } finally {
       setLoading(false);
     }
@@ -55,13 +105,15 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
 
       <div className="mt-5 flex rounded-xl bg-[#fff4dd] p-1 text-sm">
         <button
-          onClick={() => setMode('signin')}
+          type="button"
+          onClick={() => setAuthMode('signin')}
           className={`flex-1 rounded-lg px-3 py-2 ${mode === 'signin' ? 'bg-white text-[var(--play-ink)] shadow-sm' : 'text-[#7b756b]'}`}
         >
           Sign in
         </button>
         <button
-          onClick={() => setMode('signup')}
+          type="button"
+          onClick={() => setAuthMode('signup')}
           className={`flex-1 rounded-lg px-3 py-2 ${mode === 'signup' ? 'bg-white text-[var(--play-ink)] shadow-sm' : 'text-[#7b756b]'}`}
         >
           Sign up
@@ -73,6 +125,7 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
           type="email"
           required
           value={email}
+          autoComplete="email"
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
           className="w-full rounded-xl border border-[#f3c583]/50 px-3 py-2.5 text-sm outline-none focus:border-[#e99497]"
@@ -82,10 +135,23 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
           required
           minLength={6}
           value={password}
+          autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
           className="w-full rounded-xl border border-[#f3c583]/50 px-3 py-2.5 text-sm outline-none focus:border-[#e99497]"
         />
+        {mode === 'signup' && (
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={confirmPassword}
+            autoComplete="new-password"
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm password"
+            className="w-full rounded-xl border border-[#f3c583]/50 px-3 py-2.5 text-sm outline-none focus:border-[#e99497]"
+          />
+        )}
 
         {error && <p className="text-xs text-[#c2484f]">{error}</p>}
 

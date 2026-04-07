@@ -29,6 +29,7 @@ interface EditorSettingsPanelProps {
   onUpdateSelected: (props: Partial<CanvasElement>) => void;
   onDeleteSelected: () => void;
   onPreviewSelectedAnimation: () => void;
+  onApplyAnimationToAll: () => void;
   planCapabilities?: PlanCapabilities;
   currentPlanLabel: string;
   onUpgradeRequest: (targetPlanId: PlanId) => void;
@@ -114,6 +115,7 @@ export default function EditorSettingsPanel({
   onUpdateSelected,
   onDeleteSelected,
   onPreviewSelectedAnimation,
+  onApplyAnimationToAll,
   planCapabilities,
   currentPlanLabel,
   onUpgradeRequest,
@@ -732,15 +734,25 @@ export default function EditorSettingsPanel({
               <label className="text-xs font-semibold uppercase tracking-wider text-[#c86d75]">
                 Animation
               </label>
-              <button
-                type="button"
-                onClick={onPreviewSelectedAnimation}
-                disabled={currentElementAnimation.type === 'none'}
-                className="inline-flex items-center gap-1 rounded-full border border-[#e99497]/40 bg-white px-3 py-1 text-[10px] font-semibold text-[#c86d75] transition-colors hover:bg-[#fff0f0] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Play size={12} />
-                Preview
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onApplyAnimationToAll}
+                  disabled={currentElementAnimation.type === 'none'}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#b3e283]/40 bg-white px-3 py-1 text-[10px] font-semibold text-[#4b6a2e] transition-colors hover:bg-[#f7ffe9] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Apply To All
+                </button>
+                <button
+                  type="button"
+                  onClick={onPreviewSelectedAnimation}
+                  disabled={currentElementAnimation.type === 'none'}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#e99497]/40 bg-white px-3 py-1 text-[10px] font-semibold text-[#c86d75] transition-colors hover:bg-[#fff0f0] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Play size={12} />
+                  Preview
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 flex flex-col gap-3">

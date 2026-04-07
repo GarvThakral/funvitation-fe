@@ -68,7 +68,7 @@ export default function EditorElementLibrary({
             }`}
           >
             <div className={`h-1.5 w-full bg-gradient-to-r ${templateVisuals[template.id]?.accent || 'from-[#e99497] to-[#b3e283]'}`} />
-            <button onClick={() => onApplyTemplate(template)} className="w-full p-3.5">
+            <button type="button" onClick={() => onApplyTemplate(template)} className="w-full p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="grid h-7 w-7 place-items-center rounded-full bg-[#fff4dd] text-[#c86d75]">
@@ -103,6 +103,7 @@ export default function EditorElementLibrary({
       <h2 className="text-xs font-semibold uppercase tracking-wider text-[#c86d75] mb-4">Add Elements</h2>
       <div className="grid grid-cols-2 gap-3">
         <button
+          type="button"
           onClick={() =>
             onAddElement('text', {
               text: 'New Text',
@@ -123,6 +124,7 @@ export default function EditorElementLibrary({
         </button>
 
         <button
+          type="button"
           onClick={() => onAddElement('shape', { width: 100, height: 100 })}
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors"
         >
@@ -131,7 +133,15 @@ export default function EditorElementLibrary({
         </button>
 
         <button
-          onClick={() => onAddElement('character', { characterPart: 'heart', fill: '#fcd34d' })}
+          type="button"
+          onClick={() =>
+            onAddElement('character', {
+              characterPart: 'heart',
+              fill: '#f87171',
+              width: 80,
+              height: 72,
+            })
+          }
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors"
         >
           <User size={20} className="text-[#c86d75] mb-1" />
@@ -139,6 +149,7 @@ export default function EditorElementLibrary({
         </button>
 
         <button
+          type="button"
           onClick={() =>
             onAddElement('button', {
               text: 'Yes',
@@ -162,6 +173,7 @@ export default function EditorElementLibrary({
         </button>
 
         <button
+          type="button"
           onClick={() =>
             onAddElement('button', {
               text: 'No',
@@ -185,6 +197,7 @@ export default function EditorElementLibrary({
         </button>
 
         <button
+          type="button"
           onClick={onToggleColorPicker}
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors"
         >
@@ -193,6 +206,7 @@ export default function EditorElementLibrary({
         </button>
 
         <button
+          type="button"
           onClick={onOpenUpload}
           disabled={isUploadingImage}
           className="flex flex-col items-center justify-center p-3 border border-[#f3c583]/45 rounded-xl hover:bg-[#fff4dd] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"

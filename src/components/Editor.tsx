@@ -35,6 +35,8 @@ import EditorTopBar from './editor/EditorTopBar';
 import EditorStage from './editor/EditorStage';
 
 const SAFE_DOC_LIMIT_BYTES = 900 * 1024;
+const DRAFT_STORAGE_VERSION = 1;
+const getDraftStorageKey = (uid: string) => `funvitation-editor-draft:${uid}`;
 
 export default function Editor() {
   const navigate = useNavigate();
@@ -66,6 +68,7 @@ export default function Editor() {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const previewAnimationCleanupRef = useRef<(() => void) | null>(null);
+  const draftLoadedRef = useRef<string | null>(null);
 
   const selectedElement = useMemo(
     () => elements.find((element) => element.id === selectedId),
@@ -76,6 +79,52 @@ export default function Editor() {
   const isAtInviteLimit =
     billingOverview?.usage.maxActiveInvites !== null &&
     billingOverview?.usage.remainingActiveInvites === 0;
+
+  const restoreDraft = useCallback(() => {
+    if (!user || draftLoadedRef.current === user.uid || typeof window === 'undefined') {
+      return;
+    }
+
+    draftLoadedRef.current = user.uid;
+    const rawDraft = window.localStorage.getItem(getDraftStorageKey(user.uid));
+    if (!rawDraft) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawDraft) as {
+        version?: number;
+        elements?: CanvasElement[];
+        selectedTemplateId?: string | null;
+        backgroundColor?: string;
+        successMessage?: string;
+        rejectionMessage?: string;
+        animationType?: Invitation['animationType'];
+        entranceAnimation?: Invitation['entranceAnimation'];
+        musicUrl?: string;
+        canvasSize?: CanvasSize;
+      };
+
+      if (parsed.version !== DRAFT_STORAGE_VERSION) {
+        window.localStorage.removeItem(getDraftStorageKey(user.uid));
+        return;
+      }
+
+      setElements(Array.isArray(parsed.elements) ? parsed.elements.map(sanitizeElement) : []);
+      setSelectedTemplateId(parsed.selectedTemplateId || null);
+      setBackgroundColor(parsed.backgroundColor || '#ffffff');
+      setSuccessMessage(parsed.successMessage || DEFAULT_SUCCESS_MESSAGE);
+      setRejectionMessage(parsed.rejectionMessage || DEFAULT_REJECTION_MESSAGE);
+      setAnimationType(parsed.animationType || 'none');
+      setEntranceAnimation(parsed.entranceAnimation || DEFAULT_ENTRANCE_ANIMATION);
+      setMusicUrl(parsed.musicUrl || '');
+      setCanvasSize(sanitizeCanvasSize(parsed.canvasSize || DEFAULT_CANVAS_SIZE));
+      setSelectedId(null);
+    } catch (error) {
+      console.error('Failed to restore editor draft:', error);
+      window.localStorage.removeItem(getDraftStorageKey(user.uid));
+    }
+  }, [user]);
 
   const refreshAccountData = useCallback(async () => {
     if (!user) {
@@ -125,6 +174,42 @@ export default function Editor() {
   useEffect(() => {
     void refreshAccountData();
   }, [refreshAccountData]);
+
+  useEffect(() => {
+    restoreDraft();
+  }, [restoreDraft]);
+
+  useEffect(() => {
+    if (!user || draftLoadedRef.current !== user.uid || typeof window === 'undefined') {
+      return;
+    }
+
+    const payload = {
+      version: DRAFT_STORAGE_VERSION,
+      elements: elements.map(sanitizeElement),
+      selectedTemplateId,
+      backgroundColor,
+      successMessage,
+      rejectionMessage,
+      animationType,
+      entranceAnimation,
+      musicUrl,
+      canvasSize,
+    };
+
+    window.localStorage.setItem(getDraftStorageKey(user.uid), JSON.stringify(payload));
+  }, [
+    animationType,
+    backgroundColor,
+    canvasSize,
+    elements,
+    entranceAnimation,
+    musicUrl,
+    rejectionMessage,
+    selectedTemplateId,
+    successMessage,
+    user,
+  ]);
 
   useEffect(() => {
     if (searchParams.get('billing') === 'return') {
@@ -269,6 +354,20 @@ export default function Editor() {
           previewAnimationCleanupRef.current = null;
         },
       }
+    );
+  };
+
+  const handleApplyAnimationToAll = () => {
+    if (!selectedElement?.elementAnimation) {
+      return;
+    }
+
+    const sharedAnimation = { ...selectedElement.elementAnimation };
+    setElements((prev) =>
+      prev.map((element) => ({
+        ...element,
+        elementAnimation: { ...sharedAnimation },
+      }))
     );
   };
 
@@ -470,6 +569,7 @@ export default function Editor() {
             onUpdateSelected={updateSelected}
             onDeleteSelected={deleteSelected}
             onPreviewSelectedAnimation={handlePreviewSelectedAnimation}
+            onApplyAnimationToAll={handleApplyAnimationToAll}
             planCapabilities={currentPlan?.capabilities}
             currentPlanLabel={currentPlan?.label || 'Starter'}
             onUpgradeRequest={handlePlanCheckout}

@@ -1,7 +1,8 @@
-import { Group, Layer, Rect, Stage, Text, Transformer } from 'react-konva';
+import { Group, Layer, Stage, Text, Transformer } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useRef, type RefObject } from 'react';
 import URLImage from '../canvas/URLImage';
+import CanvasShape from '../canvas/CanvasShape';
 import type { CanvasElement, CanvasSize } from '../../types';
 import { getElementTextLayout } from '../../lib/element-text-layout';
 import { DEFAULT_TEXT_FONT } from '../../lib/invitation';
@@ -151,11 +152,9 @@ export default function EditorStage({
                       onTap={() => onSelect(element.id)}
                       onTransformEnd={(e) => onTransformEnd(element.id, e)}
                     >
-                      <Rect
-                        width={element.width}
-                        height={element.height}
-                        fill={element.fill}
-                        cornerRadius={textLayout.borderRadius}
+                      <CanvasShape
+                        element={element}
+                        cornerRadius={element.type === 'button' ? textLayout.borderRadius : 0}
                         stroke={selectedId === element.id ? '#3b82f6' : 'transparent'}
                         strokeWidth={2}
                       />

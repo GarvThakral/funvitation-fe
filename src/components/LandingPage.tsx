@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, ExternalLink, Loader2, RefreshCcw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   createCustomerPortalSession,
   fetchBillingOverview,
@@ -93,8 +93,8 @@ export default function LandingPage() {
         id: 'starter',
         label: 'Starter',
         priceLabel: '$0',
-        marketingFeatures: ['1 active invite', 'Core templates', 'Basic sharing'],
-        limits: { maxActiveInvites: 1 },
+        marketingFeatures: ['5 active invites', 'Core templates', 'Basic sharing'],
+        limits: { maxActiveInvites: 5 },
         capabilities: {
           templateAccess: 'core',
           allowCustomResponseMessages: false,
@@ -215,9 +215,13 @@ export default function LandingPage() {
               Check state
             </button>
           ) : (
-            <a href="#auth" className="rounded-full border border-[#e99497]/50 bg-white px-4 py-2 text-sm font-medium hover:bg-[#fff0f0]">
-              Sign in
-            </a>
+            <span className="rounded-full border border-[#e99497]/50 bg-white px-4 py-2 text-sm font-medium text-[#6a645a]">
+              {loading ? 'Checking session...' : (
+                <a href="#auth" className="hover:text-[#2f2c28]">
+                  Sign in
+                </a>
+              )}
+            </span>
           )}
           {user && (
             <button
@@ -274,7 +278,14 @@ export default function LandingPage() {
             )}
           </div>
 
-          {user ? (
+          {loading && !user ? (
+            <section className="rounded-3xl border border-[#f3c583]/60 bg-white p-6 shadow-xl shadow-[#f3c583]/25">
+              <div className="flex items-center gap-3 text-sm text-[#6a645a]">
+                <Loader2 size={16} className="animate-spin text-[#c86d75]" />
+                Restoring your session...
+              </div>
+            </section>
+          ) : user ? (
             <section className="rounded-3xl border border-[#f3c583]/60 bg-white p-6 shadow-xl shadow-[#f3c583]/25">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -512,8 +523,11 @@ export default function LandingPage() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-8 text-sm text-[#5f5a50] md:flex-row md:items-center md:justify-between">
           <p>© {new Date().getFullYear()} funvitation. Made for memorable moments.</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-[#2f2c28]">Privacy</a>
-            <a href="#" className="hover:text-[#2f2c28]">Terms</a>
+            <Link to="/privacy" className="hover:text-[#2f2c28]">Privacy</Link>
+            <Link to="/terms" className="hover:text-[#2f2c28]">Terms</Link>
+            <Link to="/support" className="hover:text-[#2f2c28]">Support</Link>
+            <Link to="/support#upvote" className="hover:text-[#2f2c28]">Upvote</Link>
+            <Link to="/support#socials" className="hover:text-[#2f2c28]">Socials</Link>
             <a href="#auth" className="hover:text-[#2f2c28]">Get Started</a>
           </div>
         </div>

@@ -69,19 +69,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signIn: async (email, password) => {
         if (!auth) throw new Error('Firebase Auth is not configured');
-        await signInWithEmailAndPassword(auth, email, password);
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        setUser(credential.user);
       },
       signInWithGoogle: async () => {
         if (!auth) throw new Error('Firebase Auth is not configured');
-        await signInWithPopup(auth, googleProvider);
+        const credential = await signInWithPopup(auth, googleProvider);
+        setUser(credential.user);
       },
       signUp: async (email, password) => {
         if (!auth) throw new Error('Firebase Auth is not configured');
-        await createUserWithEmailAndPassword(auth, email, password);
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        setUser(credential.user);
       },
       signOut: async () => {
         if (!auth) throw new Error('Firebase Auth is not configured');
         await firebaseSignOut(auth);
+        setUser(null);
       },
     }),
     [loading, user]

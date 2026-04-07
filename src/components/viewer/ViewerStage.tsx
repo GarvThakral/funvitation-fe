@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Group, Layer, Rect, Stage, Text } from 'react-konva';
+import { Group, Layer, Stage, Text } from 'react-konva';
 import type { CanvasElement, CanvasSize, Invitation } from '../../types';
 import { getElementTextLayout } from '../../lib/element-text-layout';
 import { DEFAULT_TEXT_FONT } from '../../lib/invitation';
 import { useFontRenderTick } from '../../lib/use-font-render-tick';
 import { startKonvaElementAnimation } from '../../lib/element-animation';
 import URLImage from '../canvas/URLImage';
+import CanvasShape from '../canvas/CanvasShape';
 import EntranceAnimationWrapper from './EntranceAnimationWrapper';
 
 interface ViewerStageProps {
@@ -163,11 +164,9 @@ export default function ViewerStage({
                   scaleX={scale}
                   scaleY={scale}
                 >
-                  <Rect
-                    width={element.width}
-                    height={element.height}
-                    fill={element.fill}
-                    cornerRadius={textLayout.borderRadius}
+                  <CanvasShape
+                    element={element}
+                    cornerRadius={element.type === 'button' ? textLayout.borderRadius : 0}
                     shadowBlur={5}
                     shadowOpacity={0.1}
                   />
